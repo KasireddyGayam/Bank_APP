@@ -1,10 +1,10 @@
 const dbConnection = require("../configurations/db.config");
 const connectToRabbit = require("../configurations/rabbitmq.config");
-const {sendMail,otpStore}=require("../controller/mail.controller")
+const {sendMail}=require("../controller/mail.controller")
 const util=require("util");
 const query=util.promisify(dbConnection.query).bind(dbConnection)
 const client=require("../configurations/redis.config")
-
+let otpStore={};
 
 //---------------------------------------save user-----------------------------------
 exports.create = async (req, res) => {
@@ -16,7 +16,7 @@ exports.create = async (req, res) => {
     user.id=id;
     const message=JSON.stringify(user);
     await connectToRabbit(message);
-    await sendMail(user.email,'Welcome To HDFC BANK','OTP Authentication \n Here is Your OTP\n')
+   otpStore= await sendMail(user.email,'Welcome To HDFC BANK','OTP Authentication \n Here is Your OTP\n')
     return res.status(201).json({message:"User Has been saved",data:message,statusbar:true})
     }
     catch(err)
@@ -60,4 +60,29 @@ exports.fetch=async (req,res)=>{
 }
 
 
+//--------------------------------------------verify------------------------------------------------------
 
+exports.verify=async (req,res)=>{
+    const {email,otp}=req.body;
+    console.log(otpStore)
+    try{
+    if(!email||!otp)
+        {
+            throw new Error("Email and OTP must be required");
+        }
+    if(!otpStore)
+        {
+            console.log(otpStore)
+        throw new Error("Email Not Matched");
+        }
+    if(otp==otpStore[email].otp)
+        {
+            const result=await query(`update user set ? where email=?`,[{status:true},email])
+            delete otpStore[email]
+                return res.status(202).json({message:"User has been Verified",data:result})
+        }
+    }
+    catch(err){
+        return res.status(500).json({error:err.message})
+    }
+}

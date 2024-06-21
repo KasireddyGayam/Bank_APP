@@ -1,12 +1,11 @@
 const transporter=require("../configurations/mailsender.config");
-const otpStore={};
 const {authenticator}=require("otplib")
 
 async function sendMail(to,subject,text){
+    let otpStore={}
     try{
         const otp=authenticator.generate(process.env.OTP_SECRET)
-        const expiry=Date.now()+parseInt(process.env.OTP_EXPIRY);
-        otpStore[to]={otp,expiry}
+        otpStore[to]=otp;
     let info=await transporter.sendMail({
         from:process.env.MAIL,
         to:to,
@@ -15,6 +14,7 @@ async function sendMail(to,subject,text){
     })
     console.log(`message sent with id ${info.messageId}`)
     console.log("OTP "+otp)
+    return otpStore;
 }
 catch(err)
 {
@@ -22,4 +22,6 @@ catch(err)
 }
 }
 
-module.exports={sendMail,otpStore};
+// console.log(otpStore)
+
+module.exports={sendMail};
